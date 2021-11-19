@@ -60,7 +60,7 @@ class Camera:
                 frame = self.frames.pop(0)
                 self.locker_save.release()
                 print(f"cam{self.ip}", frame.id, old_id)
-                if(frame.id == old_id):continue 
+                # if(frame.id == old_id):continue  # if you want to remove dublications
                 old_id = frame.id 
                 # output.write(cv2.resize(frame, (int(self.save_height), int(self.save_width))))
                 writer.write(cv2.resize(frame.img, (int(self.save_height), int(self.save_width))))
