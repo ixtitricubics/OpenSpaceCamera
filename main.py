@@ -30,7 +30,6 @@ if(__name__ == '__main__'):
     save = False
     finish = False
     while(True):
-        
         frames = []
         start_read = time.time()
         for ind, cam in enumerate(cameras):
@@ -60,7 +59,11 @@ if(__name__ == '__main__'):
                     cam.stop()     
                 vis.stop() 
                 break              
+            elif(c == 'z'):
+                if(camera_config.CAMERA.CALIBRATE):
+                    vis.undo()
             print("input::", c)
+            
         time.sleep(0.005)
     if(camera_config.SAVE):
         for cam in cameras:

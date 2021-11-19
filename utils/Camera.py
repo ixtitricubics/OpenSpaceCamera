@@ -5,6 +5,7 @@ import os
 import math
 import numpy as np
 from vidgear.gears import WriteGear
+import itertools
 
 class Frame:
     def __init__(self, img, id):
@@ -116,19 +117,18 @@ class Camera:
         return ret_frame
 
 class Visualization:
-    def __init__(self, ips, count_window, show_width, show_height) -> None:
+    def __init__(self, ips, count_window, show_width, show_height, calibrate=True) -> None:
         self.ips = ips 
         self.count_window = count_window
         self.show_width = int(show_width)
         self.show_height = int(show_height)
+        self.calibrate = calibrate
         self.frames = None 
         self.h_count = int(math.sqrt(count_window))
         self.w_count = self.h_count + math.ceil((count_window-(self.h_count*self.h_count))/count_window)
         while(self.h_count * self.w_count< count_window):
             self.h_count+=1
         
-        
-
         self.vis_thread = threading.Thread(target=self.run)
         self.showed_frames_count = 0
         self.exit = False
@@ -141,9 +141,12 @@ class Visualization:
             self.name = self.ips[0]
         else:
             self.name = "big_frame"
-
-        cv2.namedWindow(self.name)        
-        cv2.setMouseCallback(self.name, self.mouse_event)
+            
+        cv2.namedWindow(self.name) 
+        if(self.calibrate):       
+            self.points = []
+            self.load_calibration()
+            cv2.setMouseCallback(self.name, self.mouse_event)
         
     def update_frames(self, frames):
         self.frames = frames 
@@ -151,11 +154,45 @@ class Visualization:
         self.vis_thread.start()
     def stop(self):
         self.exit = True 
-        
+    def undo(self):
+        if(len(self.points) > 0):
+            _ = self.points.pop()
+                
     def mouse_event(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDBLCLK:
-            print("mouse clicked")
-            
+            self.points.append([x, y])
+    def save_calibration(self,):
+        # import yaml
+        import ruamel.yaml
+        yaml = ruamel.yaml.YAML()
+        yaml.version = (1,2)
+        yaml.default_flow_style = None
+
+        pixel_points = self.points#list(itertools.chain(*self.points))
+        world_points = [[0,0],[0,0],[0,0],[0,0]]
+        data = dict(
+            pixel_points =pixel_points,
+            world_points =world_points,
+        )
+        with open(f'configs/calibrations/{self.name}.yml', 'w') as outfile:
+            yaml.dump(data, outfile)
+        
+    def load_calibration(self):
+        import ruamel.yaml
+        yaml = ruamel.yaml.YAML()
+        yaml.version = (1,2)
+        yaml.default_flow_style = None
+        
+        f_path = f'configs/calibrations/{self.name}.yml'
+        if(os.path.exists(f_path)):
+            with open(f_path, 'r') as f:
+                try:
+                    data = yaml.load(f)
+                    print(data)
+                    self.points = data["pixel_points"]
+                    self.world_points = data["world_points"]
+                except Exception as exc:
+                    print(exc)
     def run(self):
         self.create_windows()
         while(not self.exit):
@@ -167,9 +204,17 @@ class Visualization:
                         st_x = i%self.w_count
                         st_y = i//self.w_count
                         self.big_frame[st_y*self.show_height:(st_y+1)*self.show_height,st_x*self.show_width:(st_x+1)*self.show_width,:] = cv2.resize(self.frames[i].img, (self.show_width,self.show_height))
+                if(self.calibrate):
+                    for i in range(len(self.points)):
+                        cv2.circle(self.big_frame, self.points[i], 2, (255,0,0), thickness=-1)
 
                 self.showed_frames_count +=1
                 cv2.imshow(self.name, self.big_frame)
-                cv2.waitKey(1)
+                ret = cv2.waitKey(1)
+                if(self.calibrate):
+                    if(ret == ord('z') or ret == ord('Z')):
+                        self.undo()
+                    elif(ret == ord('e')):
+                        self.save_calibration()
             else:
                 time.sleep(0.04)
