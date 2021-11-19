@@ -116,7 +116,8 @@ class Camera:
         return ret_frame
 
 class Visualization:
-    def __init__(self, count_window, show_width, show_height) -> None:
+    def __init__(self, ips, count_window, show_width, show_height) -> None:
+        self.ips = ips 
         self.count_window = count_window
         self.show_width = int(show_width)
         self.show_height = int(show_height)
@@ -125,27 +126,50 @@ class Visualization:
         self.w_count = self.h_count + math.ceil((count_window-(self.h_count*self.h_count))/count_window)
         while(self.h_count * self.w_count< count_window):
             self.h_count+=1
+        
+        
 
         self.vis_thread = threading.Thread(target=self.run)
         self.showed_frames_count = 0
         self.exit = False
         self.big_frame = np.zeros((self.show_height*self.h_count, self.show_width*self.w_count, 3), dtype=np.uint8)
+        self.locker = threading.Lock()
+        
+
+    def create_windows(self ):
+        if(len(self.ips) == 1):
+            self.name = self.ips[0]
+        else:
+            self.name = "big_frame"
+
+        cv2.namedWindow(self.name)        
+        cv2.setMouseCallback(self.name, self.mouse_event)
+        
     def update_frames(self, frames):
         self.frames = frames 
     def start(self):
         self.vis_thread.start()
     def stop(self):
         self.exit = True 
+        
+    def mouse_event(self, event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDBLCLK:
+            print("mouse clicked")
+            
     def run(self):
+        self.create_windows()
         while(not self.exit):
             if(self.frames is not None):
-                for i in range(len(self.frames)):
-                    st_x = i%self.w_count
-                    st_y = i//self.w_count
-                    self.big_frame[st_y*self.show_height:(st_y+1)*self.show_height,st_x*self.show_width:(st_x+1)*self.show_width,:] = cv2.resize(self.frames[i].img, (self.show_width,self.show_height))
+                if(len(self.ips) == 1):
+                    self.big_frame = cv2.resize(self.frames[0].img, (self.show_width,self.show_height))
+                else:
+                    for i in range(len(self.frames)):
+                        st_x = i%self.w_count
+                        st_y = i//self.w_count
+                        self.big_frame[st_y*self.show_height:(st_y+1)*self.show_height,st_x*self.show_width:(st_x+1)*self.show_width,:] = cv2.resize(self.frames[i].img, (self.show_width,self.show_height))
 
                 self.showed_frames_count +=1
-                cv2.imshow("big_frame", self.big_frame)
+                cv2.imshow(self.name, self.big_frame)
                 cv2.waitKey(1)
             else:
                 time.sleep(0.04)

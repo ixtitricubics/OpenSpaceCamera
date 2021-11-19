@@ -13,12 +13,12 @@ def isData():
 
 
 if(__name__ == '__main__'):
-    ips = ["192.168.1.101","192.168.1.102" ,"192.168.1.103","192.168.1.104","192.168.1.105" ] #
+    ips = ["192.168.1.101"] #, "192.168.1.103","192.168.1.102" ,"192.168.1.103","192.168.1.104","192.168.1.105" 
     cameras = [Camera(camera_config, ip) for ip in ips]
     
-    show_width = 600
-    show_height = 400
-    vis = Visualization(len(ips), show_width=show_width, show_height=show_height)
+    show_width = camera_config.SAVE_WIDTH
+    show_height = camera_config.SAVE_HEIGHT
+    vis = Visualization(ips, len(ips), show_width=show_width, show_height=show_height)
     # start reading
     for cam in cameras:
         cam.start()
@@ -52,7 +52,7 @@ if(__name__ == '__main__'):
             vis.update_frames(frames)
 
             spent_time = round(time.time() - start_read,3)
-            print(f'reading = {time_read} s. saving = {time_save}s. spent time {spent_time}')
+            # print(f'reading = {time_read} s. saving = {time_save}s. spent time {spent_time}')
         if(isData()):
             c = sys.stdin.read(1)
             if(c == 'e'):
@@ -61,7 +61,7 @@ if(__name__ == '__main__'):
                 vis.stop() 
                 break              
             print("input::", c)
-        time.sleep(0.001)
+        time.sleep(0.005)
     if(camera_config.SAVE):
         for cam in cameras:
             cam.wait_for_saving()
