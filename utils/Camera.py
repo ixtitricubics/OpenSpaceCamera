@@ -6,7 +6,8 @@ import math
 import numpy as np
 from vidgear.gears import WriteGear
 import itertools
-
+from utils.utils import get_rectangle_positions, read_yaml
+import utils.utils as utils
 class Frame:
     def __init__(self, img, id):
         self.img = img
@@ -43,7 +44,11 @@ class Camera:
 
     def wait_for_saving(self):
         self.save_thread.join()
-    def save_run(self):
+
+    def save_run(self, allow_duplicates=False):
+        """
+            if dont allow duplicates the number of frames may become differet among cameras.
+        """
         name = f"cam{self.ip}_" + time.strftime("%Y_%m_%d_%H_%M_%S") + ".avi"
         # output = cv2.VideoWriter(os.path.join("saved", name),
         #                 cv2.VideoWriter_fourcc('M','J','P','G'), 
@@ -117,13 +122,14 @@ class Camera:
         return ret_frame
 
 class Visualization:
-    def __init__(self, ips, count_window, show_width, show_height, calibrate=True) -> None:
+    def __init__(self, ips, count_window, show_width, show_height, calibrate=False, fuse=True) -> None:
         self.ips = ips 
         self.count_window = count_window
         self.show_width = int(show_width)
         self.show_height = int(show_height)
         self.calibrate = calibrate
         self.frames = None 
+        self.fuse = fuse
         self.h_count = int(math.sqrt(count_window))
         self.w_count = self.h_count + math.ceil((count_window-(self.h_count*self.h_count))/count_window)
         while(self.h_count * self.w_count< count_window):
@@ -134,8 +140,7 @@ class Visualization:
         self.exit = False
         self.big_frame = np.zeros((self.show_height*self.h_count, self.show_width*self.w_count, 3), dtype=np.uint8)
         self.locker = threading.Lock()
-        
-
+    
     def create_windows(self ):
         if(len(self.ips) == 1):
             self.name = self.ips[0]
@@ -145,7 +150,12 @@ class Visualization:
         cv2.namedWindow(self.name) 
         if(self.calibrate):       
             self.points = []
-            self.load_calibration()
+            self.load_calibration_points()
+        if(self.fuse):
+            self.points = [[-1,-1] for _ in range(len(self.ips))]
+            self.point = None
+            self.load_calib_info()            
+        if(self.fuse or self.calibrate):            
             cv2.setMouseCallback(self.name, self.mouse_event)
         
     def update_frames(self, frames):
@@ -160,7 +170,12 @@ class Visualization:
                 
     def mouse_event(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDBLCLK:
-            self.points.append([x, y])
+            if(self.calibrate):
+                self.points.append([x, y])
+        if(event == cv2.EVENT_MOUSEMOVE):
+            self.point = [x, y]
+
+
     def save_calibration(self,):
         # import yaml
         import ruamel.yaml
@@ -173,11 +188,17 @@ class Visualization:
         data = dict(
             pixel_points =pixel_points,
             world_points =world_points,
+            img_shape= [self.show_width, self.show_height]
         )
         with open(f'configs/calibrations/{self.name}.yml', 'w') as outfile:
             yaml.dump(data, outfile)
+    def load_calib_info(self):
+        f_path = f'configs/calibrations/calib_info.yaml'
+        data = read_yaml(f_path)
+        self.calib_info = data
+        # import pdb;pdb.set_trace()
         
-    def load_calibration(self):
+    def load_calibration_points(self):
         import ruamel.yaml
         yaml = ruamel.yaml.YAML()
         yaml.version = (1,2)
@@ -193,13 +214,54 @@ class Visualization:
                     self.world_points = data["world_points"]
                 except Exception as exc:
                     print(exc)
+    def find_camera(self, pt):
+        """
+        returns the index of camera
+        """
+        x = int(pt[0] / self.show_width)
+        y = int(pt[1] / self.show_height)
+        index = y * self.w_count  + x
+        # print("find_cam,x,y=", x, y)
+        # print("index", index)
+        
+        return index
     def run(self):
         self.create_windows()
         while(not self.exit):
             if(self.frames is not None):
+                # if mode is fuse and point is not none then find the camera which point is located 
+                # and calculate all other camera points by conveting
+                if(self.fuse and not self.point is None):
+                    cam_index  = self.find_camera(self.point)                    
+                    if(cam_index < len(self.ips)):
+                        # print("current camera is located at", self.ips[cam_index])
+                        other_cameras = set(self.ips) - set(self.ips[cam_index])
+                        # print(self.calib_info)
+                        # convert current point to world coordinates
+                        pt_current = [(self.point[0]%self.show_width) /self.show_width,
+                                     (self.point[1]%self.show_height) /self.show_height,
+                                     1]
+                        w_pt = utils.convert_point(pt_current, np.float32(self.calib_info[self.ips[cam_index]]), self.calib_info["img_shape"])
+                        # print(w_pt)
+                        # self.points[0] = self.point
+
+                        # # now convert all the other camera points to img points
+                        other_cameras = list(other_cameras)
+                        for ind, ip in enumerate(other_cameras):
+                            pt = utils.convert_point(w_pt, np.float32(self.calib_info[self.ips[cam_index]]), inv=True)                            
+                            pt = [pt[0]/self.calib_info["img_shape"][0], pt[1]/self.calib_info["img_shape"][1]]
+                            curr_shape = self.frames[-1].img.shape
+                            index = self.find_camera(pt)
+                            # change these
+                            
+                            # pt = [pt[0] * curr_shape[0], pt[0] * curr_shape[1]]
+                            # self.points[index] = pt 
+
+                            # cv2.circle( self.frames[index].img, pt, 10, (255,0,0), thickness=-1)
+                            
                 if(len(self.ips) == 1):
                     self.big_frame = cv2.resize(self.frames[0].img, (self.show_width,self.show_height))
-                else:
+                else:                    
                     for i in range(len(self.frames)):
                         st_x = i%self.w_count
                         st_y = i//self.w_count
@@ -207,7 +269,10 @@ class Visualization:
                 if(self.calibrate):
                     for i in range(len(self.points)):
                         cv2.circle(self.big_frame, self.points[i], 2, (255,0,0), thickness=-1)
-
+                # elif(self.fuse):
+                #     for i in range(len(self.points)):
+                #         cv2.circle(self.big_frame, self.points[i], 10, (255,0,0), thickness=-1)
+                    
                 self.showed_frames_count +=1
                 cv2.imshow(self.name, self.big_frame)
                 ret = cv2.waitKey(1)

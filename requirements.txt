@@ -2,3 +2,4 @@ vidgear
 fvcore
 opencv
 numpy
+ruamel
