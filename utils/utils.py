@@ -1,6 +1,7 @@
 import cv2 
 import numpy as np
 import os 
+import sys
 def get_rectangle_positions(pt, cfg, a_top = True):
     """
     returns rectangle positions given first position. It assumes that rectangle is parallel to x axis.
@@ -23,15 +24,21 @@ def calibrate(pix_pts, w_pts):
     h, status = cv2.findHomography(np.float32(pix_pts), np.float32(w_pts))
     return h
 
+def print_error(e):
+    exc_type, exc_obj, exc_tb = sys.exc_info()
+    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+    print(exc_type, fname, exc_tb.tb_lineno)
+    print(e)
+
 def convert_point(point_px, h, im_shape=None, inv=False):
-    if(not im_shape is None):
+    if(not im_shape is None and not inv):
         pt = [point_px[0] * im_shape[0], 
                 point_px[1] * im_shape[1], 
                 1]
     else:
         pt = [*point_px, 1]
-    print("*** initial_pt", point_px, im_shape)
-    print("*** converting point", pt)
+    # print("*** initial_pt", point_px, im_shape)
+    # print("*** converting point", pt)
     if(inv):
         pt = np.dot(np.linalg.inv(h), pt)
     else:
@@ -39,7 +46,9 @@ def convert_point(point_px, h, im_shape=None, inv=False):
         # pt = cv2.perspectiveTransform(np.float32([pt]), h)
     pt = (pt/pt[-1])[:2]
     res = np.int32(pt)
-    print("****res", res)
+    # print("****res", res)
+    if(inv and not im_shape is None):
+        res = [res[0]/im_shape[0], res[1]/im_shape[1]]
     return res 
 
 def save_yaml(dict_data, file_path):

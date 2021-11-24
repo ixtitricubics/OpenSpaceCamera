@@ -66,7 +66,8 @@ class Camera:
                 frame = self.frames.pop(0)
                 self.locker_save.release()
                 print(f"cam{self.ip}", frame.id, old_id)
-                # if(frame.id == old_id):continue  # if you want to remove dublications
+                if(not allow_duplicates):
+                    if(frame.id == old_id):continue  # if you want to remove dublications
                 old_id = frame.id 
                 # output.write(cv2.resize(frame, (int(self.save_height), int(self.save_width))))
                 writer.write(cv2.resize(frame.img, (int(self.save_height), int(self.save_width))))
@@ -216,7 +217,7 @@ class Visualization:
                     print(exc)
     def find_camera(self, pt):
         """
-        returns the index of camera
+            returns the index of camera
         """
         x = int(pt[0] / self.show_width)
         y = int(pt[1] / self.show_height)
@@ -230,8 +231,9 @@ class Visualization:
         while(not self.exit):
             if(self.frames is not None):
                 # if mode is fuse and point is not none then find the camera which point is located 
-                # and calculate all other camera points by conveting
+                # and calculate all other camera points by converting
                 if(self.fuse and not self.point is None):
+                    curr_shape = self.frames[-1].img.shape
                     cam_index  = self.find_camera(self.point)                    
                     if(cam_index < len(self.ips)):
                         # print("current camera is located at", self.ips[cam_index])
@@ -243,14 +245,14 @@ class Visualization:
                                      1]
                         w_pt = utils.convert_point(pt_current, np.float32(self.calib_info[self.ips[cam_index]]), self.calib_info["img_shape"])
                         # print(w_pt)
-                        # self.points[0] = self.point
+                        self.points[cam_index] = [int(pt_current[0] * curr_shape[0]), int(pt_current[1] * curr_shape[1])]
 
-                        # # now convert all the other camera points to img points
+                        # now convert all the other camera points to img points
                         other_cameras = list(other_cameras)
                         for ind, ip in enumerate(other_cameras):
                             pt = utils.convert_point(w_pt, np.float32(self.calib_info[self.ips[cam_index]]), inv=True)                            
                             pt = [pt[0]/self.calib_info["img_shape"][0], pt[1]/self.calib_info["img_shape"][1]]
-                            curr_shape = self.frames[-1].img.shape
+                            
                             index = self.find_camera(pt)
                             # change these
                             
@@ -258,6 +260,9 @@ class Visualization:
                             # self.points[index] = pt 
 
                             # cv2.circle( self.frames[index].img, pt, 10, (255,0,0), thickness=-1)
+                        for i in range(len(self.points)):
+                            cv2.circle(self.frames[i].img, self.points[i], 10, (255,0,0), thickness=-1)
+                        # import pdb;pdb.set_trace()
                             
                 if(len(self.ips) == 1):
                     self.big_frame = cv2.resize(self.frames[0].img, (self.show_width,self.show_height))
@@ -269,9 +274,9 @@ class Visualization:
                 if(self.calibrate):
                     for i in range(len(self.points)):
                         cv2.circle(self.big_frame, self.points[i], 2, (255,0,0), thickness=-1)
-                # elif(self.fuse):
-                #     for i in range(len(self.points)):
-                #         cv2.circle(self.big_frame, self.points[i], 10, (255,0,0), thickness=-1)
+                elif(self.fuse):
+                    for i in range(len(self.points)):
+                        cv2.circle(self.big_frame, self.points[i], 10, (255,255,0), thickness=-1)
                     
                 self.showed_frames_count +=1
                 cv2.imshow(self.name, self.big_frame)

@@ -1,5 +1,5 @@
 vidgear
 fvcore
-opencv
+opencv-python
 numpy
-ruamel
+ruamel.yaml
