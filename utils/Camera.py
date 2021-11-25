@@ -65,7 +65,7 @@ class Camera:
                 self.locker_save.acquire()
                 frame = self.frames.pop(0)
                 self.locker_save.release()
-                print(f"cam{self.ip}", frame.id, old_id)
+                # print(f"cam{self.ip}", frame.id, old_id)
                 if(not allow_duplicates):
                     if(frame.id == old_id):continue  # if you want to remove dublications
                 old_id = frame.id 
@@ -123,7 +123,7 @@ class Camera:
         return ret_frame
 
 class Visualization:
-    def __init__(self, ips, count_window, show_width, show_height, calibrate=False, fuse=True) -> None:
+    def __init__(self, ips, count_window, show_width, show_height, calibrate, fuse) -> None:
         self.ips = ips 
         self.count_window = count_window
         self.show_width = int(show_width)
@@ -215,6 +215,8 @@ class Visualization:
                     self.world_points = data["world_points"]
                 except Exception as exc:
                     print(exc)
+        else:
+            print(f_path, " does not exist")
     def find_camera(self, pt):
         """
             returns the index of camera
@@ -233,50 +235,43 @@ class Visualization:
                 # if mode is fuse and point is not none then find the camera which point is located 
                 # and calculate all other camera points by converting
                 if(self.fuse and not self.point is None):
-                    curr_shape = self.frames[-1].img.shape
+                    points = {}
+                    curr_shape = self.frames[self.ips[-1]].img.shape
                     cam_index  = self.find_camera(self.point)                    
                     if(cam_index < len(self.ips)):
-                        # print("current camera is located at", self.ips[cam_index])
-                        other_cameras = set(self.ips) - set(self.ips[cam_index])
-                        # print(self.calib_info)
+                        other_cameras = set(self.ips) - set([self.ips[cam_index]])
+
                         # convert current point to world coordinates
                         pt_current = [(self.point[0]%self.show_width) /self.show_width,
                                      (self.point[1]%self.show_height) /self.show_height,
                                      1]
                         w_pt = utils.convert_point(pt_current, np.float32(self.calib_info[self.ips[cam_index]]), self.calib_info["img_shape"])
-                        # print(w_pt)
-                        self.points[cam_index] = [int(pt_current[0] * curr_shape[0]), int(pt_current[1] * curr_shape[1])]
+                        pt_new = utils.convert_point(w_pt, np.float32(self.calib_info[self.ips[cam_index]]), self.calib_info["img_shape"], inv=True)
+                        print(w_pt)
+                        pt_new = [int(pt_new[0] *curr_shape[1]), int(pt_new[1] *curr_shape[0])]
+                        points[self.ips[cam_index]] =  pt_new[:2]
 
                         # now convert all the other camera points to img points
                         other_cameras = list(other_cameras)
                         for ind, ip in enumerate(other_cameras):
-                            pt = utils.convert_point(w_pt, np.float32(self.calib_info[self.ips[cam_index]]), inv=True)                            
-                            pt = [pt[0]/self.calib_info["img_shape"][0], pt[1]/self.calib_info["img_shape"][1]]
-                            
-                            index = self.find_camera(pt)
-                            # change these
-                            
-                            # pt = [pt[0] * curr_shape[0], pt[0] * curr_shape[1]]
-                            # self.points[index] = pt 
-
-                            # cv2.circle( self.frames[index].img, pt, 10, (255,0,0), thickness=-1)
-                        for i in range(len(self.points)):
-                            cv2.circle(self.frames[i].img, self.points[i], 10, (255,0,0), thickness=-1)
+                            pt = utils.convert_point(w_pt, np.float32(self.calib_info[ip]),  self.calib_info["img_shape"], inv=True)
+                            pt = [int(pt[0] *curr_shape[1]), int(pt[1] *curr_shape[0])]
+                            points[ip] = pt
+                        for ip in self.ips:
+                            cv2.circle(self.frames[ip].img,points[ip], 10, (255,0,0), thickness=-1)
                         # import pdb;pdb.set_trace()
                             
                 if(len(self.ips) == 1):
-                    self.big_frame = cv2.resize(self.frames[0].img, (self.show_width,self.show_height))
+                    self.big_frame = cv2.resize(self.frames[self.ips[0]].img, (self.show_width,self.show_height))
                 else:                    
                     for i in range(len(self.frames)):
                         st_x = i%self.w_count
                         st_y = i//self.w_count
-                        self.big_frame[st_y*self.show_height:(st_y+1)*self.show_height,st_x*self.show_width:(st_x+1)*self.show_width,:] = cv2.resize(self.frames[i].img, (self.show_width,self.show_height))
+                        self.big_frame[st_y*self.show_height:(st_y+1)*self.show_height,st_x*self.show_width:(st_x+1)*self.show_width,:] = cv2.resize(self.frames[self.ips[i]].img, (self.show_width,self.show_height))
+
                 if(self.calibrate):
                     for i in range(len(self.points)):
                         cv2.circle(self.big_frame, self.points[i], 2, (255,0,0), thickness=-1)
-                elif(self.fuse):
-                    for i in range(len(self.points)):
-                        cv2.circle(self.big_frame, self.points[i], 10, (255,255,0), thickness=-1)
                     
                 self.showed_frames_count +=1
                 cv2.imshow(self.name, self.big_frame)
