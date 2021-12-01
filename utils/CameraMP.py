@@ -197,7 +197,7 @@ class Visualization:
             yaml.dump(data, outfile)
     @staticmethod
     def load_calib_info():
-        f_path = f'configs/calibrations/calib_info.yaml'
+        f_path = f'configs/calibrations/camera_info.yaml'
         data = read_yaml(f_path)
         calib_info = data
         return calib_info

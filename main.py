@@ -1,5 +1,6 @@
 import cv2
 from utils.Camera import Camera, Visualization
+from utils import utils
 import time 
 import os 
 from configs.camera import cfg as camera_config
@@ -13,18 +14,18 @@ def isData():
 
 
 if(__name__ == '__main__'):
-    ips = ["192.168.1.101", "192.168.1.102", "192.168.1.103", "192.168.1.104"] #, "192.168.1.101", "192.168.1.102", "192.168.1.103", "192.168.1.104"
+    ips = ["192.168.1.101", "192.168.1.102", "192.168.1.103", "192.168.1.104","192.168.1.105","192.168.1.42"] #, "192.168.1.101", "192.168.1.102", "192.168.1.103", "192.168.1.104"
+    calib_info = utils.read_yaml("configs/calibrations/camera_info.yaml")
     cameras = {}
     for ip in ips:
-        cameras[ip] = Camera(camera_config, ip)
-    
-    show_width = camera_config.SAVE_WIDTH
-    show_height = camera_config.SAVE_HEIGHT
-    vis = Visualization(ips, len(ips), show_width, show_height, camera_config.CAMERA.CALIBRATE, camera_config.CAMERA.FUSE)
+        cameras[ip] = Camera(camera_config, calib_info[ip], ip)
+
+    vis = Visualization(ips, len(ips),  camera_config.SHOW_WIDTH, camera_config.SHOW_HEIGHT, camera_config.CAMERA.CALIBRATE, camera_config.CAMERA.FUSE)
     # start reading
     for ip in ips:
         cameras[ip].start()
     vis.start()
+    
 
     old_settings = termios.tcgetattr(sys.stdin)
     tty.setcbreak(sys.stdin.fileno())

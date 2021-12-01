@@ -14,19 +14,19 @@ class Frame:
         self.id = id
         
 class Camera:
-    def __init__(self, cfg, ip_address="192.168.1.104") -> None:
+    def __init__(self, cfg, cam_config, ip_address="192.168.1.104") -> None:
         self.profile_no = 2
         self.ip = ip_address
         self.cam_thread = threading.Thread(target=self.read)
         self.user_name = cfg.CAMERA.USERNAME#"admin"
         self.passwd = cfg.CAMERA.PASSWORD#"@12DFG56qwe851"
         self.port = cfg.CAMERA.PORT#554
-        self.path = f"rtsp://{self.user_name}:{self.passwd}@{self.ip}:{self.port}/profile{self.profile_no}/media.smp"
+        self.path =cam_config["path"]
         # self.path = "rtsp://192.168.1.106:554/profile2/media.smp"
         print(self.path)
         self.cap = cv2.VideoCapture()                
         self.cap.open(self.path)
-        self.retreive_cam_infos()
+        # self.retreive_cam_infos()
         # self.curr_frames = []
         self.curr_frame = None
         
@@ -45,7 +45,7 @@ class Camera:
     def wait_for_saving(self):
         self.save_thread.join()
 
-    def save_run(self, allow_duplicates=False):
+    def save_run(self, allow_duplicates=True):
         """
             if dont allow duplicates the number of frames may become differet among cameras.
         """
@@ -54,7 +54,7 @@ class Camera:
         #                 cv2.VideoWriter_fourcc('M','J','P','G'), 
         #                 25,
         #                 (int(self.save_height), int(self.save_width)))
-        output_params = {"-vcodec": "mpeg4", "-crf": "28", "-preset": "medium", "-filter:v":"fps=20"}
+        output_params = {"-vcodec": "mpeg4", "-crf": "28", "-preset": "medium", "-filter:v":"fps=10"}
 
         writer = WriteGear(output_filename = os.path.join("saved", name), compression_mode=False, logging=False, **output_params)
 
@@ -70,7 +70,10 @@ class Camera:
                     if(frame.id == old_id):continue  # if you want to remove dublications
                 old_id = frame.id 
                 # output.write(cv2.resize(frame, (int(self.save_height), int(self.save_width))))
-                writer.write(cv2.resize(frame.img, (int(self.save_height), int(self.save_width))))
+                if(self.save_height > 0):
+                    writer.write(cv2.resize(frame.img, (int(self.save_height), int(self.save_width))))
+                else:
+                    writer.write(frame.img)
                 self.saved_frames_count += 1
                 
             else:
@@ -87,6 +90,7 @@ class Camera:
         self.width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         self.height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
         self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+        print("cam_info", self.width, self.height, self.fps)
 
     def start(self):
         self.cam_thread.start()
@@ -97,12 +101,10 @@ class Camera:
     def read(self):
         print("Camera {} is reading".format(self.ip))
         while(not self.exit):
-            self.cap.grab()
-            self.locker.acquire()
+            self.cap.grab()            
             ret, frame = self.cap.retrieve()
-            self.curr_frame = Frame(frame, self.read_frames_count)
-            # self.curr_frames.append(curr_frame)
-            
+            self.locker.acquire()
+            self.curr_frame = Frame(frame, self.read_frames_count)                        
             self.locker.release()
             if not ret:
                 print("image is not read")
@@ -139,6 +141,7 @@ class Visualization:
         self.vis_thread = threading.Thread(target=self.run)
         self.showed_frames_count = 0
         self.exit = False
+        self.calib_info = None
         self.big_frame = np.zeros((self.show_height*self.h_count, self.show_width*self.w_count, 3), dtype=np.uint8)
         self.locker = threading.Lock()
     
@@ -151,12 +154,13 @@ class Visualization:
         cv2.namedWindow(self.name) 
         if(self.calibrate):       
             self.points = []
+            self.world_points = None
             self.load_calibration_points()
         if(self.fuse):
             self.points = [[-1,-1] for _ in range(len(self.ips))]
             self.point = None
             self.load_calib_info()            
-        if(self.fuse or self.calibrate):            
+        if(self.fuse or self.calibrate):              
             cv2.setMouseCallback(self.name, self.mouse_event)
         
     def update_frames(self, frames):
@@ -177,7 +181,7 @@ class Visualization:
             self.point = [x, y]
 
 
-    def save_calibration(self,):
+    def save_calibration(self, orig_shape):
         # import yaml
         import ruamel.yaml
         yaml = ruamel.yaml.YAML()
@@ -185,16 +189,20 @@ class Visualization:
         yaml.default_flow_style = None
 
         pixel_points = self.points#list(itertools.chain(*self.points))
-        world_points = [[0,0],[0,0],[0,0],[0,0]]
+        if(self.world_points is None):
+            world_points = [[0,0],[0,0],[0,0],[0,0]]
+        else:
+            world_points = self.world_points
         data = dict(
             pixel_points =pixel_points,
             world_points =world_points,
-            img_shape= [self.show_width, self.show_height]
+            img_shape= [self.show_width, self.show_height],
+            orig_shape= (orig_shape[:2])[::-1]
         )
         with open(f'configs/calibrations/{self.name}.yml', 'w') as outfile:
             yaml.dump(data, outfile)
     def load_calib_info(self):
-        f_path = f'configs/calibrations/calib_info.yaml'
+        f_path = f'configs/calibrations/camera_info.yaml'
         data = read_yaml(f_path)
         self.calib_info = data
         # import pdb;pdb.set_trace()
@@ -230,13 +238,13 @@ class Visualization:
         return index
     def run(self):
         self.create_windows()
+        orig_shape = None
         while(not self.exit):
             if(self.frames is not None):
                 # if mode is fuse and point is not none then find the camera which point is located 
                 # and calculate all other camera points by converting
                 if(self.fuse and not self.point is None):
                     points = {}
-                    curr_shape = self.frames[self.ips[-1]].img.shape
                     cam_index  = self.find_camera(self.point)                    
                     if(cam_index < len(self.ips)):
                         other_cameras = set(self.ips) - set([self.ips[cam_index]])
@@ -245,29 +253,32 @@ class Visualization:
                         pt_current = [(self.point[0]%self.show_width) /self.show_width,
                                      (self.point[1]%self.show_height) /self.show_height,
                                      1]
-                        w_pt = utils.convert_point(pt_current, np.float32(self.calib_info[self.ips[cam_index]]), self.calib_info["img_shape"])
-                        pt_new = utils.convert_point(w_pt, np.float32(self.calib_info[self.ips[cam_index]]), self.calib_info["img_shape"], inv=True)
+                        w_pt = utils.convert_point(pt_current, np.float32(self.calib_info[self.ips[cam_index]]["H"]), self.calib_info[self.ips[cam_index]]["img_shape"])
+                        pt_new = utils.convert_point(w_pt,  np.float32(self.calib_info[self.ips[cam_index]]["H"]), self.calib_info[self.ips[cam_index]]["img_shape"], inv=True)
                         print(w_pt)
-                        pt_new = [int(pt_new[0] *curr_shape[1]), int(pt_new[1] *curr_shape[0])]
+                        pt_new = [int(pt_new[0] *self.calib_info[self.ips[cam_index]]["orig_shape"][0]), int(pt_new[1] *self.calib_info[self.ips[cam_index]]["orig_shape"][1])]
                         points[self.ips[cam_index]] =  pt_new[:2]
 
                         # now convert all the other camera points to img points
                         other_cameras = list(other_cameras)
                         for ind, ip in enumerate(other_cameras):
-                            pt = utils.convert_point(w_pt, np.float32(self.calib_info[ip]),  self.calib_info["img_shape"], inv=True)
-                            pt = [int(pt[0] *curr_shape[1]), int(pt[1] *curr_shape[0])]
+                            pt = utils.convert_point(w_pt, self.calib_info[ip]["H"],  self.calib_info[ip]["img_shape"], inv=True)
+                            pt = [int(pt[0] *self.calib_info[ip]["orig_shape"][0]), int(pt[1] *self.calib_info[ip]["orig_shape"][1])]
                             points[ip] = pt
                         for ip in self.ips:
                             cv2.circle(self.frames[ip].img,points[ip], 10, (255,0,0), thickness=-1)
                         # import pdb;pdb.set_trace()
-                            
+                if(orig_shape is None and not self.frames[self.ips[0]] is None):
+                    orig_shape = self.frames[self.ips[0]].img.shape
                 if(len(self.ips) == 1):
+                    if(self.frames[self.ips[0]].img is None):continue
                     self.big_frame = cv2.resize(self.frames[self.ips[0]].img, (self.show_width,self.show_height))
                 else:                    
                     for i in range(len(self.frames)):
                         st_x = i%self.w_count
                         st_y = i//self.w_count
                         self.big_frame[st_y*self.show_height:(st_y+1)*self.show_height,st_x*self.show_width:(st_x+1)*self.show_width,:] = cv2.resize(self.frames[self.ips[i]].img, (self.show_width,self.show_height))
+                
 
                 if(self.calibrate):
                     for i in range(len(self.points)):
@@ -280,6 +291,6 @@ class Visualization:
                     if(ret == ord('z') or ret == ord('Z')):
                         self.undo()
                     elif(ret == ord('e')):
-                        self.save_calibration()
+                        self.save_calibration(orig_shape)
             else:
                 time.sleep(0.04)

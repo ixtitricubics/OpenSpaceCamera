@@ -73,7 +73,7 @@ def read_yaml(f_path):
                     return data
                 except Exception as exc:
                     print(exc)
-        return None, None
+        return None
         
 
 def load_calibration(name):
@@ -91,8 +91,9 @@ def load_calibration(name):
                     points = data["pixel_points"]
                     world_points = data["world_points"]
                     img_shape= data["img_shape"]
-                    return points, world_points, img_shape
+                    orig_shape= data["orig_shape"]
+                    return points, world_points, img_shape, orig_shape
                 except Exception as exc:
                     print(exc)
-        return None, None
+        return None, None, None, None
         
