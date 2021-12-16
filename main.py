@@ -14,46 +14,62 @@ def isData():
 
 
 if(__name__ == '__main__'):
-    ips = ["192.168.1.101", "192.168.1.102", "192.168.1.103", "192.168.1.104","192.168.1.105","192.168.1.42"] #, "192.168.1.101", "192.168.1.102", "192.168.1.103", "192.168.1.104"
+    ips = ["192.168.1.46"] #"192.168.1.45",  "192.168.1.42", "192.168.1.101", "192.168.1.102", "192.168.1.103", "192.168.1.104"
     calib_info = utils.read_yaml("configs/calibrations/camera_info.yaml")
     cameras = {}
     for ip in ips:
         cameras[ip] = Camera(camera_config, calib_info[ip], ip)
 
-    vis = Visualization(ips, len(ips),  camera_config.SHOW_WIDTH, camera_config.SHOW_HEIGHT, camera_config.CAMERA.CALIBRATE, camera_config.CAMERA.FUSE)
-    # start reading
+    vis = Visualization(ips, len(ips),  camera_config.SHOW_WIDTH, camera_config.SHOW_HEIGHT, camera_config.CAMERA.CALIBRATE, camera_config.CAMERA.FUSE, camera_config.CAMERA.SELECT_AREA, calib_info)
+    # start reading 
     for ip in ips:
         cameras[ip].start()
     vis.start()
-    
-
     old_settings = termios.tcgetattr(sys.stdin)
     tty.setcbreak(sys.stdin.fileno())
+
+    # find the maximal delay 
+    max_delay = 0
+    for ip in ips:
+        max_delay= max(calib_info[ip]["time_delay"],max_delay)
+    
     count = 0
     save = False
     finish = False
+    collected_frames = []
+    delay = 100
     while(True):
         frames = {}
         start_read = time.time()
+
         for ip in ips:
             frame = cameras[ip]()
-            if(frame is None):
+            if(frame is None or frame.img is None):
                 break
             frames[ip] = frame
         
+        
         time_read = round(time.time() - start_read,3)
-
+        # print("frames", len(frames), frames.keys())
         if(len(frames) == len(cameras)):
-            
-            start_save = time.time()
-            if(camera_config.SAVE):
-                for ip in ips:
-                    cameras[ip].insert_frame_to_save(frames[ip])
-            time_save = round(time.time() - start_save,3)
+            count +=1
+            if(count >= delay):
+                collected_frames.append(frames)
+                if(len(collected_frames)>=max_delay):
+                    new_frames = {}
+                    for ip in ips:
+                        new_frames[ip] = collected_frames[-calib_info[ip]["time_delay"]][ip]
+                    collected_frames.pop(0)
 
-            vis.update_frames(frames)
+                    start_save = time.time()
+                    if(camera_config.SAVE):
+                        for ip in ips:
+                            cameras[ip].insert_frame_to_save(new_frames[ip])
+                    time_save = round(time.time() - start_save,3)
 
-            spent_time = round(time.time() - start_read,3)
+                    vis.update_frames(new_frames)
+
+                    spent_time = round(time.time() - start_read,3)
             # print(f'reading = {time_read} s. saving = {time_save}s. spent time {spent_time}')
         if(isData()):
             c = sys.stdin.read(1)
@@ -67,7 +83,7 @@ if(__name__ == '__main__'):
                     vis.undo()
             print("input::", c)
             
-        time.sleep(0.025)
+        time.sleep(0.01)
     if(camera_config.SAVE):
         for ip in ips:
             cameras[ip].wait_for_saving()
