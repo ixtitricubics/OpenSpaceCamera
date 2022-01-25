@@ -104,7 +104,7 @@ class Camera:
 
 
 
-    def save_run(self, allow_duplicates=True):
+    def save_run1(self, allow_duplicates=True):
         """
             if dont allow duplicates the number of frames may become differet among cameras.
         """
@@ -146,7 +146,7 @@ class Camera:
         writer.close()
 
 
-    def save_run1(self, allow_duplicates=True):
+    def save_run(self, allow_duplicates=True):
         """
             if dont allow duplicates the number of frames may become differet among cameras.
         """
