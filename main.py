@@ -14,7 +14,7 @@ def isData():
 
 
 if(__name__ == '__main__'):
-    ips = ["192.168.1.46"] #"192.168.1.45",  "192.168.1.42", "192.168.1.101", "192.168.1.102", "192.168.1.103", "192.168.1.104"
+    ips = ["192.168.1.111","192.168.1.112","192.168.1.113","192.168.1.114","192.168.1.115"]#,"192.168.1.111","192.168.1.112","192.168.1.113","192.168.1.114","192.168.1.115"
     calib_info = utils.read_yaml("configs/calibrations/camera_info.yaml")
     cameras = {}
     for ip in ips:
@@ -37,7 +37,7 @@ if(__name__ == '__main__'):
     save = False
     finish = False
     collected_frames = []
-    delay = 100
+    delay = 1
     while(True):
         frames = {}
         start_read = time.time()
@@ -66,9 +66,7 @@ if(__name__ == '__main__'):
                         for ip in ips:
                             cameras[ip].insert_frame_to_save(new_frames[ip])
                     time_save = round(time.time() - start_save,3)
-
                     vis.update_frames(new_frames)
-
                     spent_time = round(time.time() - start_read,3)
             # print(f'reading = {time_read} s. saving = {time_save}s. spent time {spent_time}')
         if(isData()):
@@ -83,7 +81,7 @@ if(__name__ == '__main__'):
                     vis.undo()
             print("input::", c)
             
-        time.sleep(0.01)
+        time.sleep(0.05)
     if(camera_config.SAVE):
         for ip in ips:
             cameras[ip].wait_for_saving()

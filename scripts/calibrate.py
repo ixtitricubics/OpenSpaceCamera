@@ -6,7 +6,7 @@ from utils.utils import  get_rectangle_positions, load_calibration, calibrate,sa
 from configs.camera import cfg as camera_config
 
 if(__name__ == '__main__'):
-    ips = ["192.168.1.101", "192.168.1.102", "192.168.1.103", "192.168.1.104", "192.168.1.42", "192.168.1.41"]
+    ips = ["192.168.1.111","192.168.1.112","192.168.1.113","192.168.1.114","192.168.1.115"]
     H = read_yaml("configs/calibrations/camera_info.yaml")
     
     for ip in ips:
