@@ -466,14 +466,14 @@ class Visualization:
                         w_pt = utils.convert_point(pt_current, np.float32(self.calib_info[self.ips[cam_index]]["H"]), self.calib_info[self.ips[cam_index]]["img_shape"])
                         pt_new = utils.convert_point(w_pt,  np.float32(self.calib_info[self.ips[cam_index]]["H"]), self.calib_info[self.ips[cam_index]]["img_shape"], inv=True)
                         print(w_pt)
-                        pt_new = [int(pt_new[0] *self.calib_info[self.ips[cam_index]]["orig_shape"][1]), int(pt_new[1] *self.calib_info[self.ips[cam_index]]["orig_shape"][0])]
+                        pt_new = [int(pt_new[0] *self.calib_info[self.ips[cam_index]]["orig_shape"][0]), int(pt_new[1] *self.calib_info[self.ips[cam_index]]["orig_shape"][1])]
                         points[self.ips[cam_index]] =  pt_new[:2]
 
                         # now convert all the other camera points to img points
                         other_cameras = list(other_cameras)
                         for ind, ip in enumerate(other_cameras):
                             pt = utils.convert_point(w_pt, self.calib_info[ip]["H"],  self.calib_info[ip]["img_shape"], inv=True)
-                            pt = [int(pt[0] *self.calib_info[ip]["orig_shape"][1]), int(pt[1] *self.calib_info[ip]["orig_shape"][0])]
+                            pt = [int(pt[0] *self.calib_info[ip]["orig_shape"][0]), int(pt[1] *self.calib_info[ip]["orig_shape"][1])]
                             points[ip] = pt
                         for ip in frames:
                             if(frames[ip] is not None and frames[ip].img is not None):
