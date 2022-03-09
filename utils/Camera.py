@@ -112,7 +112,7 @@ class Camera:
         vid_name = name + ".avi"
         picker_name = name + ".pickle"
         output_params = {"-vcodec": "mpeg4", "-crf": "28", "-preset": "medium", "-filter:v":f"fps={self.fps}"}
-        writer = WriteGear(output_filename = os.path.join("saved", vid_name), compression_mode=False, logging=False, **output_params)
+        writer = WriteGear(output_filename = os.path.join("/mnt/7DD0FA902253E55C/saved", vid_name), compression_mode=False, logging=False, **output_params)
 
 
         print(f"saving to {name}")
@@ -216,7 +216,6 @@ class Camera:
     #         self.cam_lock.release()
     #         time.sleep(0.01)
         
-    
     def read(self):
         self.stream.start()
         print("Camera {} is reading".format(self.ip))
@@ -512,7 +511,7 @@ class Visualization:
                     
                 self.showed_frames_count +=1
                 cv2.imshow(self.name, self.big_frame)
-                ret = cv2.waitKey(100)
+                ret = cv2.waitKey(10)
                 if(ret == ord('z') or ret == ord('Z')):
                     if(self.calibrate or self.select_area):
                         self.undo()

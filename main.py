@@ -14,7 +14,7 @@ def isData():
 
 
 if(__name__ == '__main__'):
-    ips = ["192.168.1.111","192.168.1.112"]#,"192.168.1.111","192.168.1.112","192.168.1.113","192.168.1.114","192.168.1.115"
+    ips = ["192.168.0.111","192.168.0.112"] #,"192.168.0.111","192.168.0.112","192.168.0.113","192.168.0.114","192.168.0.115"
     calib_info = utils.read_yaml("configs/calibrations/camera_info.yaml")
     cameras = {}
     for ip in ips:
@@ -25,8 +25,8 @@ if(__name__ == '__main__'):
     for ip in ips:
         cameras[ip].start()
     vis.start()
-    old_settings = termios.tcgetattr(sys.stdin)
-    tty.setcbreak(sys.stdin.fileno())
+    # old_settings = termios.tcgetattr(sys.stdin)
+    # tty.setcbreak(sys.stdin.fileno())
 
     # find the maximal delay 
     max_delay = 0
@@ -37,7 +37,7 @@ if(__name__ == '__main__'):
     save = False
     finish = False
     collected_frames = []
-    delay = 1
+    delay = 200
     while(True):
         frames = {}
         start_read = time.time()

@@ -9,6 +9,7 @@
   orig_shape: [1080, 1920]
   fps: 30
   time_delay: 1
+  register: 0
   password: '@12DFG56qwe851'
   username: admin
   PORT: 554
@@ -27,6 +28,7 @@
   orig_shape: [1080, 1920]
   fps: 30
   time_delay: 1
+  register: 0
   password: '@12DFG56qwe851'
   username: admin
   PORT: 554
@@ -45,6 +47,7 @@
   orig_shape: [1080, 1920]
   fps: 30
   time_delay: 1
+  register: 0
   password: '@12DFG56qwe851'
   username: admin
   PORT: 554
@@ -63,6 +66,7 @@
   orig_shape: [1080, 1920]
   fps: 30
   time_delay: 1
+  register: 0
   password: '@12DFG56qwe851'
   username: admin
   PORT: 554
@@ -81,6 +85,7 @@
   orig_shape: [1080, 1920]
   fps: 30
   time_delay: 1
+  register: 0
   password: '@12DFG56qwe851'
   username: admin
   PORT: 554
@@ -103,6 +108,7 @@
   orig_shape: [3840, 2160]
   fps: 20
   time_delay: 1
+  register: 0
   password:
   username: admin
   PORT: 554
@@ -121,6 +127,7 @@
   orig_shape: [3840, 2160]
   fps: 15
   time_delay: 1
+  register: 0
   password:
   username: admin
   PORT: 554
@@ -139,6 +146,7 @@
   orig_shape: [3840, 2160]
   fps: 14
   time_delay: 1
+  register: 0
   password:
   username: admin
   PORT: 554
@@ -157,6 +165,7 @@
   orig_shape: [3840, 2160]
   fps: 20
   time_delay: 1
+  register: 0
   password: '@12DFG56qwe851'
   username: admin
   PORT: 554
@@ -175,6 +184,7 @@
   orig_shape: [3840, 2160]
   fps: 20
   time_delay: 1
+  register: 0
   password: '@12DFG56qwe851'
   username: admin
   PORT: 554
@@ -184,7 +194,7 @@
   - [1, 0]
   - [1, 1]
   - [0, 1]
-192.168.1.111:
+192.168.0.111:
   H:
   - [0.930950704012806, -0.1308059998365983, -94.39105049295904]
   - [0.4756673464995712, 1.5248811239297808, -818.2886479255878]
@@ -193,16 +203,17 @@
   orig_shape: [1920, 1080]
   fps: 25
   time_delay: 1
+  register: 0
   password:
   username: admin
   PORT: 554
-  path: rtsp://admin:@192.168.1.111:554/profile2/media.smp
+  path: rtsp://admin:@192.168.0.111:554/profile2/media.smp
   selected_points:
   - [0.356, 0.473]
   - [0.767, 0.579]
   - [0.698, 0.985]
   - [0.195, 0.796]
-192.168.1.112:
+192.168.0.112:
   H:
   - [-1.286817612236269, 0.04714367235015648, 877.7201614305703]
   - [0.4648787194062801, -1.2192679633895387, 879.4183593773781]
@@ -211,16 +222,17 @@
   orig_shape: [1920, 1080]
   fps: 25
   time_delay: 1
+  register: 0
   password:
   username: admin
   PORT: 554
-  path: rtsp://admin:@192.168.1.112:554/profile2/media.smp
+  path: rtsp://admin:@192.168.0.112:554/profile2/media.smp
   selected_points:
   - [0.356, 0.473]
   - [0.767, 0.579]
   - [0.698, 0.985]
   - [0.195, 0.796]
-192.168.1.113:
+192.168.0.113:
   H:
   - [-0.9750961342522517, 1.6590478452177495, 176.94494304921565]
   - [-0.9204645944705647, -0.6724525834719639, 1153.0219202250526]
@@ -229,16 +241,17 @@
   orig_shape: [1920, 1080]
   fps: 25
   time_delay: 1
+  register: 0
   password:
   username: admin
   PORT: 554
-  path: rtsp://admin:@192.168.1.113:554/profile2/media.smp
+  path: rtsp://admin:@192.168.0.113:554/profile2/media.smp
   selected_points:
   - [0.356, 0.473]
   - [0.767, 0.579]
   - [0.698, 0.985]
   - [0.195, 0.796]
-192.168.1.114:
+192.168.0.114:
   H:
   - [0.6360428921022413, 2.835366508686273, -1125.1497815289813]
   - [-1.5572580460079875, 1.8397498484547838, 254.98047992025408]
@@ -247,16 +260,17 @@
   orig_shape: [1920, 1080]
   fps: 25
   time_delay: 1
+  register: 0
   password:
   username: admin
   PORT: 554
-  path: rtsp://admin:@192.168.1.114:554/profile2/media.smp
+  path: rtsp://admin:@192.168.0.114:554/profile2/media.smp
   selected_points:
   - [0.356, 0.473]
   - [0.767, 0.579]
   - [0.698, 0.985]
   - [0.195, 0.796]
-192.168.1.115:
+192.168.0.115:
   H:
   - [8.417593275187855, 3.7640914251878534, -2725.962972477099]
   - [-0.7344731732334914, 10.019036290727646, -5969.851092819094]
@@ -265,10 +279,11 @@
   orig_shape: [1920, 1080]
   fps: 25
   time_delay: 1
+  register: True
   password:
   username: admin
   PORT: 554
-  path: rtsp://admin:@192.168.1.115:554/profile2/media.smp
+  path: rtsp://admin:@192.168.0.115:554/profile2/media.smp
   selected_points:
   - [0.448, 0.628]
   - [0.576, 0.622]
@@ -278,7 +293,7 @@
   - [0.427, 0.842]
   - [0.433, 0.767]
   - [0.442, 0.702]
-192.168.1.116:
+192.168.0.116:
   H:
   - [0.6360428921022414, 2.8353665086862736, -1125.1497815289815]
   - [-1.557258046007988, 1.839749848454784, 254.98047992025403]
@@ -287,10 +302,11 @@
   orig_shape: [1920, 1080]
   fps: 25
   time_delay: 1
+  register: True
   password:
   username: admin
   PORT: 554
-  path: rtsp://admin:@192.168.1.116:554/profile2/media.smp
+  path: rtsp://admin:@192.168.0.116:554/profile2/media.smp
   selected_points:
   - [0.407, 0.549]
   - [0.557, 0.552]
