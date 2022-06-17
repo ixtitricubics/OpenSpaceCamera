@@ -14,13 +14,15 @@ def isData():
 
 
 if(__name__ == '__main__'):
-    ips = ["192.168.0.111","192.168.0.112"] #,"192.168.0.111","192.168.0.112","192.168.0.113","192.168.0.114","192.168.0.115"
+    ips = ["192.168.0.111"] #,"192.168.0.111","192.168.0.112","192.168.0.113","192.168.0.114","192.168.0.115"
     calib_info = utils.read_yaml("configs/calibrations/camera_info.yaml")
     cameras = {}
     for ip in ips:
         cameras[ip] = Camera(camera_config, calib_info[ip], ip)
 
-    vis = Visualization(ips, len(ips),  camera_config.SHOW_WIDTH, camera_config.SHOW_HEIGHT, camera_config.CAMERA.CALIBRATE, camera_config.CAMERA.FUSE, camera_config.CAMERA.SELECT_AREA, calib_info)
+    vis = Visualization(ips, len(ips),  camera_config.SHOW_WIDTH,
+     camera_config.SHOW_HEIGHT, camera_config.CAMERA.CALIBRATE, 
+     camera_config.CAMERA.FUSE, camera_config.CAMERA.SELECT_AREA, calib_info)
     # start reading 
     for ip in ips:
         cameras[ip].start()
@@ -37,7 +39,7 @@ if(__name__ == '__main__'):
     save = False
     finish = False
     collected_frames = []
-    delay = 200
+    delay = 1
     while(True):
         frames = {}
         start_read = time.time()

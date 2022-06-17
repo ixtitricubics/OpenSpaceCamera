@@ -20,9 +20,7 @@ def get_rectangle_positions(pt, cfg, a_top = True):
         pt4 = [pt1[0], pt1[1] + cfg.CALIBRATION.sides[0]]
         return [pt1, pt2, pt3, pt4]
 
-def calibrate(pix_pts, w_pts):
-    h, status = cv2.findHomography(np.float32(pix_pts), np.float32(w_pts))
-    return h
+
 
 def print_error(e):
     exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -74,7 +72,6 @@ def read_yaml(f_path):
                 except Exception as exc:
                     print(exc)
         return None
-        
 
 def load_calibration(name):
         import ruamel.yaml
@@ -96,4 +93,27 @@ def load_calibration(name):
                 except Exception as exc:
                     print(exc)
         return None, None, None, None
-        
+from matplotlib.patches import FancyArrowPatch
+from mpl_toolkits.mplot3d import proj3d
+class Arrow3D(FancyArrowPatch):
+    '''
+    3D arrow class can be shown in matplotlib 3D model.
+    '''
+    def __init__(self, xs, ys, zs, *args, **kwargs):
+        FancyArrowPatch.__init__(self, (0,0), (0,0), *args, **kwargs)
+        self._verts3d = xs, ys, zs
+    
+    
+    
+    def do_3d_projection(self, renderer=None):
+        xs3d, ys3d, zs3d = self._verts3d
+        xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, self.axes.M)
+        self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
+
+        return np.min(zs)
+
+    def draw(self, renderer):
+        xs3d, ys3d, zs3d = self._verts3d
+        xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, renderer.M)
+        self.set_positions((xs[0], ys[0]),(xs[1], ys[1]))
+        FancyArrowPatch.draw(self, renderer)

@@ -22,33 +22,21 @@ class Camera:
         self.profile_no = 2
         self.ip = ip_address
         self.cam_thread = threading.Thread(target=self.read)
-        # self.cam_grabber_thread = threading.Thread(target=self.grab)
-        self.user_name = cfg.CAMERA.USERNAME#"admin"
-        self.passwd = cfg.CAMERA.PASSWORD#"@12DFG56qwe851"
-        self.port = cfg.CAMERA.PORT#554
+        self.user_name = cfg.CAMERA.USERNAME
+        self.passwd = cfg.CAMERA.PASSWORD
+        self.port = cfg.CAMERA.PORT
         self.path =cam_config["path"]
         self.fps = cam_config["fps"]
-        # self.path = "rtsp://192.168.1.106:554/profile2/media.smp"
         print(self.path)
         self.time_delay=cam_config["time_delay"]
         # if you use opencv
         self.stream = CamGear( 
             source=self.path, 
-            # stream_mode=True,
-            # time_delay=cam_config["time_delay"],
-            # logging=True
         )
-        # self.cap = cv2.VideoCapture()                
-        # self.cap.open(self.path)
-
-        # self.retreive_cam_infos()
-        # self.curr_frames = []
         self.curr_frame = None
         
         self.locker = threading.Lock()
         self.locker_save = threading.Lock()
-        # self.cam_lock = threading.Lock()
-        # self.frame_ready = False
         self.exit = False
         self.save = cfg.SAVE
         if(cfg.SAVE):
@@ -62,49 +50,7 @@ class Camera:
     def wait_for_saving(self):
         self.save_thread.join()
 
-    def save_run_old(self, allow_duplicates=True):
-        """
-            if dont allow duplicates the number of frames may become differet among cameras.
-        """
-        name = f"cam{self.ip}_" + time.strftime("%Y_%m_%d_%H_%M_%S") + ".avi"
-        
-        # output = cv2.VideoWriter(os.path.join("saved", name),
-        #                 cv2.VideoWriter_fourcc('M','J','P','G'), 
-        #                 25,
-        #                 (int(self.save_height), int(self.save_width)))
-        output_params = {"-vcodec": "mpeg4", "-crf": "28", "-preset": "medium", "-filter:v":f"fps={self.fps}"}
-
-        writer = WriteGear(output_filename = os.path.join("saved", name), compression_mode=False, logging=False, **output_params)
-
-        print(f"saving to {name}")
-        
-        old_id = -1
-        while(not self.exit):
-            while(len(self.frames) > 0):
-                self.locker_save.acquire()
-                frame = self.frames.pop(0)
-                self.locker_save.release()
-                if(frame is None):continue
-                # print(f"cam{self.ip}", frame.id, old_id)
-                if(not allow_duplicates):
-                    if(frame.id == old_id):continue  # if you want to remove dublications
-                old_id = frame.id 
-                # output.write(cv2.resize(frame, (int(self.save_height), int(self.save_width))))
-                
-                if(self.save_height > 0):
-                    writer.write(cv2.resize(frame.img, (int(self.save_height), int(self.save_width))))
-                else:
-                    writer.write(frame.img)
-                self.saved_frames_count += 1            
-            time.sleep(0.01)
-        print(f"saving to {name} finished." )
-        print(f"{self.ip} read frames = {self.read_frames_count}; saved frames = {self.saved_frames_count}")
-        # output.release()
-        writer.close()
-
-
-
-    def save_run1(self, allow_duplicates=True):
+    def runner_video_save(self, allow_duplicates=True):
         """
             if dont allow duplicates the number of frames may become differet among cameras.
         """
@@ -112,8 +58,7 @@ class Camera:
         vid_name = name + ".avi"
         picker_name = name + ".pickle"
         output_params = {"-vcodec": "mpeg4", "-crf": "28", "-preset": "medium", "-filter:v":f"fps={self.fps}"}
-        writer = WriteGear(output_filename = os.path.join("/mnt/7DD0FA902253E55C/saved", vid_name), compression_mode=False, logging=False, **output_params)
-
+        writer = WriteGear(output_filename = os.path.join("./saved", vid_name), compression_mode=False, logging=False, **output_params)
 
         print(f"saving to {name}")
         data = []
@@ -146,7 +91,7 @@ class Camera:
         writer.close()
 
 
-    def save_run(self, allow_duplicates=True):
+    def runner_images_save(self, allow_duplicates=True):
         """
             if dont allow duplicates the number of frames may become differet among cameras.
         """
@@ -163,59 +108,32 @@ class Camera:
                 self.locker_save.acquire()
                 frame = self.frames.pop(0)
                 self.locker_save.release()
-                # if(frame is None):continue
-                # cv2.imwrite(str(self.saved_frames_count) + ".jpg", frame.img)
-
-                # print(f"cam{self.ip}", frame.id, old_id)
                 if(not allow_duplicates):
                     if(frame.id == old_id):continue  # if you want to remove dublications
                 old_id = frame.id 
                 data.append({"id":frame.id, "time":frame.time})
                 name = datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')[:-3] + ".jpg"
                 if(self.save_height > 0):
-                    #writer.write(cv2.resize(frame.img, (int(self.save_height), int(self.save_width))))
                     cv2.imwrite(os.path.join("saved", self.ip,  folder_name, name), cv2.resize(frame.img, (int(self.save_height), int(self.save_width))))
                 else:
-                    #writer.write(frame.img)
                     cv2.imwrite(os.path.join("saved", self.ip,  folder_name, name), frame.img)
                 self.saved_frames_count += 1            
             time.sleep(0.01)
         print(f"saving to {name} finished." )
         print(f"{self.ip} read frames = {self.read_frames_count}; saved frames = {self.saved_frames_count}")
-        # save the data to a picke
-        # with open(os.path.join("saved", picker_name), "wb") as f:
-        #     pickle.dump(data, f)
-       # writer.close()
-
 
 
     def insert_frame_to_save(self, frame):
         self.frames.append(frame)
         
-    # def retreive_cam_infos(self):
-    #     self.width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-    #     self.height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-    #     self.fps = self.cap.get(cv2.CAP_PROP_FPS)
-    #     print("cam_info", self.width, self.height, self.fps)
-
     def start(self):
-        # self.cam_thread.daemon = True
-        # self.cam_grabber_thread.daemon = True
-        # self.cam_grabber_thread.start()
         self.cam_thread.start()
-        
         if(self.save):
             self.save_thread.start()
+    
     def stop(self):
         self.exit = True
-    
-    # def grab(self):
-    #     while(not self.exit):
-    #         self.cam_lock.acquire()
-    #         self.frame_ready = self.stream.grab()
-    #         self.cam_lock.release()
-    #         time.sleep(0.01)
-        
+
     def read(self):
         self.stream.start()
         print("Camera {} is reading".format(self.ip))
@@ -243,6 +161,7 @@ class Camera:
             else:
                 time.sleep(0.005)
         return ret_frame
+
 class Visualization:
     def __init__(self, ips, count_window, show_width, show_height, calibrate, fuse, select_area, cam_config) -> None:
         self.ips = ips 
@@ -285,7 +204,7 @@ class Visualization:
             self.name = "big_frame"
         
         cv2.namedWindow(self.name) 
-        if(self.calibrate):       
+        if(self.calibrate):
             self.points = []
             self.world_points = None
             self.load_calibration_points()
@@ -304,7 +223,6 @@ class Visualization:
 
         
     def update_frames(self, frames):
-        # self.frames = frames 
         self.locker.acquire()
         self.curr_frames.append(frames)
         self.locker.release()
@@ -322,9 +240,6 @@ class Visualization:
         if(self.calibrate):
             if(len(self.points) > 0):
                 _ = self.points.pop()
-        # if(self.select_area):
-        #     if(len(self.selected_points)>0):
-        #         _ = self.selected_points.pop()
                 
     def mouse_event(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDBLCLK:
@@ -350,13 +265,6 @@ class Visualization:
                     # print("changing self.selected_points from", self.selected_points[self.active_pt])
                     self.selected_points[self.active_pt] = (round(x/self.show_width,3), round(y/self.show_height,3))
                     # print("changing self.selected_points to", self.selected_points[self.active_pt])
-    def save_selected_area(self):
-        """
-        this assumes that there is only one camera given
-        """
-        self.calib_info[self.ips[0]]["selected_points"] = self.selected_points
-        f_path = f'configs/calibrations/camera_info.yaml'
-        save_yaml(self.calib_info, f_path)
         
     def save_calibration(self, orig_shape):
         # import yaml
@@ -383,7 +291,6 @@ class Visualization:
         data = read_yaml(f_path)
 
         self.calib_info = data
-        # import pdb;pdb.set_trace()
         
     def load_calibration_points(self):
         import ruamel.yaml
@@ -391,7 +298,7 @@ class Visualization:
         yaml.version = (1,2)
         yaml.default_flow_style = None
         
-        f_path = f'configs/calibrations/{self.name}.yml'
+        f_path = f'data/calibrations/{self.name}.yml'
         if(os.path.exists(f_path)):
             with open(f_path, 'r') as f:
                 try:
@@ -403,6 +310,7 @@ class Visualization:
                     print(exc)
         else:
             print(f_path, " does not exist")
+    
     def find_camera(self, pt):
         """
             returns the index of camera
@@ -410,10 +318,8 @@ class Visualization:
         x = int(pt[0] / self.show_width)
         y = int(pt[1] / self.show_height)
         index = y * self.w_count  + x
-        # print("find_cam,x,y=", x, y)
-        # print("index", index)
-        
         return index
+
     def save_curr_frames(self, frames):
         """
         save current frames to saved_frames folder
@@ -515,11 +421,6 @@ class Visualization:
                 if(ret == ord('z') or ret == ord('Z')):
                     if(self.calibrate or self.select_area):
                         self.undo()
-                elif(ret == ord('e')):
-                    if(self.calibrate):
-                        self.save_calibration(orig_shape)
-                    elif(self.select_area):
-                        self.save_selected_area()
                 elif(ret == ord('s')):
                     self.save_curr_frames(frames)
             time.sleep(0.01)
