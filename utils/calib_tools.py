@@ -32,33 +32,6 @@ def fundamentalFromProjections(P1, P2):
             F[i, j] = cv2.determinant(XY)
     return F
     
-def distortion(points_2d, K, dist_coeffs=None):
-    if dist_coeffs is None:
-        return points_2d
-
-    k1, k2, p1, p2, k3 = dist_coeffs
-    cx, cy = K[0, 2], K[1, 2]
-    fx, fy = K[0, 0], K[1, 1]
-
-    # To relative coordinates
-    x = (points_2d[:, 0] - cx) / fx
-    y = (points_2d[:, 1] - cy) / fy
-    r2 = x * x + y * y
-
-    # Radial distorsion
-    xdistort = x * (1 + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2)
-    ydistort = y * (1 + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2)
-
-    # Tangential distorsion
-    xdistort += 2 * p1 * x * y + p2 * (r2 + 2 * x * x)
-    ydistort += p1 * (r2 + 2 * y * y) + 2 * p2 * x * y
-
-    # Back to absolute coordinates.
-    xdistort = xdistort * fx + cx
-    ydistort = ydistort * fy + cy
-
-    return np.stack([xdistort, ydistort]).T
-
 def project_simple(points_3d, K, H, dist_coeffs=None):
     """
     H is a projection matrix to convert from world to camera coordinate system.
@@ -178,17 +151,18 @@ def get_pose(cam_info):
     # Orientation vector
     O = np.matmul(R_inv, np.array([0, 0, 1]).T)
     return Hc2w,Hw2c, R,T, O
+
 def distortion(points_2d, K, dist_coeffs=None):
     if dist_coeffs is None:
         return points_2d
-
+    assert len(dist_coeffs) == 5, f"distortion values are incorrect expected 5 values but got {len(dist_coeffs)}"
     k1, k2, p1, p2, k3 = dist_coeffs
     cx, cy = K[0, 2], K[1, 2]
     fx, fy = K[0, 0], K[1, 1]
 
-    # # Back to absolute coordinates.
-    # x = points_2d[:, 0]  * fx + cx
-    # y = points_2d[:, 1]  * fy + cy
+    # Back to absolute coordinates.
+    x = points_2d[:, 0]  * fx + cx
+    y = points_2d[:, 1]  * fy + cy
 
     # To relative coordinates
     x = (points_2d[:, 0]  - cx) / fx
@@ -263,7 +237,7 @@ def back_project(points_2d, z_worlds, K, Tw, dist_coeffs):
 
 def undistort(point_2d, K, dist):    
     point_2d = cv2.undistortPoints(
-        np.ascontiguousarray(np.float32(point_2d)).reshape((1,-1,2)), K, dist, P=None
+        np.ascontiguousarray(np.float32(point_2d)).reshape((1,-1,2)), K, dist, P=K
     ).squeeze(axis=1)[0]
     return point_2d
 
@@ -311,17 +285,17 @@ def triangulate(points_2d, cam_ips, extrinsics):
     A = np.zeros([len(points_2d) * 2, 4], dtype=float)
     for i, point in enumerate(points_2d):
         ip = cam_ips[i]
-        upoint = undistort(point, extrinsics[ip]["K"], extrinsics[ip]["dist"])
+        point = undistort(point, extrinsics[ip]["K"], extrinsics[ip]["dist"])
         P = get_projection_matrix(extrinsics[ip]["K"], extrinsics[ip]["HW2C"])
-        A[2 * i, :] = upoint[0] * P[2] - P[0]
-        A[2 * i + 1, :] = upoint[1] * P[2] - P[1]
-
-
+        A[2 * i, :] = point[0] * P[2] - P[0]
+        A[2 * i + 1, :] = point[1] * P[2] - P[1]
+    
     B = A.T@A
+    B = B/np.max(B)
     u, s, vh = np.linalg.svd(B)
     error = s[-1]
     X = vh[len(s) - 1]
-    point_3d = X[:3] / X[3]
+    point_3d = np.round(X[:3] / X[3],3)
 
     return error, point_3d
 

@@ -12,7 +12,6 @@ import select
 def isData():
     return select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], [])
 
-
 if(__name__ == '__main__'):
     ips = ["192.168.0.111"] #,"192.168.0.111","192.168.0.112","192.168.0.113","192.168.0.114","192.168.0.115"
     calib_info = utils.read_yaml("configs/calibrations/camera_info.yaml")
@@ -27,9 +26,6 @@ if(__name__ == '__main__'):
     for ip in ips:
         cameras[ip].start()
     vis.start()
-    # old_settings = termios.tcgetattr(sys.stdin)
-    # tty.setcbreak(sys.stdin.fileno())
-
     # find the maximal delay 
     max_delay = 0
     for ip in ips:

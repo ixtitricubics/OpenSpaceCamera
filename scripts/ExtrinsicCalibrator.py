@@ -30,7 +30,7 @@ class ExtrinsicCalibrator:
     def __init__(self, ips) -> None:
         self.load_info(ips)
         self.ips = ips
-        self.test_fundamental_matrix=  True
+        self.test_fundamental_matrix=  False
         self.is_ok_save_results = False
         self.visualize_3d = True
         self.test_triangulate = True 
@@ -54,7 +54,7 @@ class ExtrinsicCalibrator:
             self.visualize_results(self.ips)
         if(self.test_triangulate):
             self.triangulation_test()
-        self.print_projection_error(self.ips)
+        # self.print_projection_error(self.ips)
 
     def get_all_fundamental_matrices(self, ips):
         fundamental_matricess = {}
@@ -163,7 +163,12 @@ class ExtrinsicCalibrator:
         print("distance", dist)
 
     def triangulation_test(self):
-        ip = self.ips[0]
+        ip = self.ips[np.random.randint(0, len(self.ips))]
+        print()
+        print()
+        print()
+        print("STARTING TRIANGULATION FOR ", ip)
+
         collected_points = []
         for point, pt_px in zip(self.cameras[ip]["world_points"], self.cameras[ip]["pixel_points"]):
             collected_points_ = [[point],[pt_px], [ip]]
@@ -173,15 +178,15 @@ class ExtrinsicCalibrator:
                 # if(ip == ip_):continue
                 for pt_3d, pt_2d in zip(self.cameras[ip_]["world_points"],self.cameras[ip_]["pixel_points"]):
                     if(pt_3d[0] == point[0] and pt_3d[1] == point[1] and pt_3d[2] == point[2]):
-                        print("adding the points")
-                        print(pt_3d, ip_)
-                        print(point, ip)
-                        collected_points_[0].append(point)
+                        # print("adding the points")
+                        # print(pt_3d, ip_)
+                        # print(point, ip)
+                        collected_points_[0].append(pt_3d)
                         collected_points_[1].append(pt_2d)
                         collected_points_[2].append(ip_)
             collected_points.append(collected_points_)
-            print("finished one point----------------")
-        print(collected_points)
+            # print("finished one point----------------")
+        # print(collected_points)
         for collected_point in collected_points:
             if(len(collected_point[0]) > 1):
                 print("starting to triangulate with", len(collected_point[1]), "points")
@@ -200,12 +205,15 @@ class ExtrinsicCalibrator:
         with open(os.path.join("data","extrinsics", name), "wb") as f:
             pickle.dump(self.cameras, f)
 
-    def load_info(self, ips):
+    def load_info(self, ips, use_old_extrinsics=True):
         """
         it assumes that there is a folder and pickle object that has the same name with ip        
         """
         
         self.cameras =  tools.read_yaml(os.path.join("data","calibrations","camera_info.yaml"))
+        if(use_old_extrinsics):
+            with open(os.path.join("data", "extrinsics","extrinsics.pickle"), 'rb') as f:
+                extrinsics = pickle.load(f)
         for ip in ips:                
             # it should have two arrays: pixel_points, world_points [sm]
             self.cameras[ip]["pixel_points"] = np.float32(self.cameras[ip]["pixel_points"])
@@ -221,11 +229,14 @@ class ExtrinsicCalibrator:
             with open(os.path.join("data", "intrinsics",ip +".pickle"), 'rb') as f:
                 intrinsics = pickle.load(f)
             # it should have cameraMatrix,  dist parameters, H, newCameraMatrix
-            self.cameras[ip]["K"] = intrinsics["K"] if "K" in intrinsics else intrinsics["cameraMatrix"]
-            self.cameras[ip]["optimalK"] =  intrinsics["optimalK"] if "optimalK" in intrinsics else intrinsics["newCameraMatrix"]
-            # normalize
-            self.cameras[ip]["dist"] = intrinsics["dist"]
-        
+            if(not use_old_extrinsics):
+                self.cameras[ip]["K"] = intrinsics["K"] if "K" in intrinsics else intrinsics["cameraMatrix"]
+                self.cameras[ip]["optimalK"] =  intrinsics["optimalK"] if "optimalK" in intrinsics else intrinsics["newCameraMatrix"]
+                self.cameras[ip]["dist"] = intrinsics["dist"]
+            else:
+                self.cameras[ip]["K"] = extrinsics[ip]["K"] if "K" in extrinsics[ip] else extrinsics[ip]["cameraMatrix"]
+                self.cameras[ip]["optimalK"] =  extrinsics[ip]["optimalK"] if "optimalK" in extrinsics[ip] else extrinsics[ip]["newCameraMatrix"]
+                self.cameras[ip]["dist"] = extrinsics[ip]["dist"]
     def get_poses(self, ips):
         for ip in ips:
             Hc2w, Hw2c, R, T, O = calib_tools.get_pose(self.cameras[ip])
