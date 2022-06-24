@@ -15,25 +15,26 @@ import time
 
 def get_image_pairs(ip1, ip2):
     image_pairs= {
-        "192.168.0.111": "data/images/192.168.0.111/1646819692.4600372.jpg",
-        "192.168.0.112": "data/images/192.168.0.112/1646873551.4719462.jpg",
-        "192.168.0.113": "data/images/192.168.0.113/1646878762.851959.jpg",
-        "192.168.0.114": "data/images/192.168.0.114/1646879437.5239744.jpg",
-        "192.168.0.115": "data/images/192.168.0.115/1648016148.0793035.jpg",
-        "192.168.0.116": "data/images/192.168.0.116/1648108478.7766469.jpg",
+        "192.168.0.111": "data/images_extrinsics/111.jpg",
+        "192.168.0.112": "data/images_extrinsics/112.jpg",
+        "192.168.0.113": "data/images_extrinsics/113.jpg",
+        "192.168.0.114": "data/images_extrinsics/114.jpg",
+        "192.168.0.115": "data/images_extrinsics/115.jpg",
+        "192.168.0.116": "data/images_extrinsics/116.jpg",
     }
     return [image_pairs[ip1], image_pairs[ip2]]
-
+# to get epipolar line we use these points 
 x1,y1 = None, None
-x2,y2 = None, None  
+x2,y2 = None, None
+
 class ExtrinsicCalibrator:
     def __init__(self, ips) -> None:
         self.load_info(ips)
         self.ips = ips
-        self.test_fundamental_matrix=  False
+        self.test_fundamental_matrix=  True
         self.is_ok_save_results = False
-        self.visualize_3d = True
-        self.test_triangulate = True 
+        self.visualize_3d = False
+        self.test_triangulate = False 
 
     def apply(self):
         # to get Rs and Ts
@@ -71,12 +72,10 @@ class ExtrinsicCalibrator:
         img1 = cv2.imread(paths[0], -1)
         img2 = cv2.imread(paths[1], -1)
 
-
         print("starting to get the fundamental matrix")
         F1 = calib_tools.get_fundamental_matrix_from_prjs(ips, self.cameras)
         print('The new F1 = \n{}'.format(F1))
         print('det F1 = {}'.format(np.linalg.det(F1)))
-
         print("finished taking fundamental matrix")
         
         def mouse_event1(event, x, y, flags, param):        
@@ -85,7 +84,7 @@ class ExtrinsicCalibrator:
                 # TODO get the size of the image and resized image from configs
                 x1,y1 = int(x * 1920/1024),int(y * 1080/768)
                 print("x1,y1 changed", x1,y1)
-        def mouse_event2(event, x, y, flags, param):        
+        def mouse_event2(event, x, y, flags, param):
             global x2,y2 
             if event == cv2.EVENT_LBUTTONDBLCLK:
                 x2,y2 = int(x * 1920/1024),int(y * 1080/768)
@@ -94,7 +93,6 @@ class ExtrinsicCalibrator:
         cv2.setMouseCallback("frame1", mouse_event1)
         cv2.namedWindow("frame2") 
         cv2.setMouseCallback("frame2", mouse_event2)
-
 
         while(True):
             img1_copy = img1.copy()
@@ -164,23 +162,20 @@ class ExtrinsicCalibrator:
 
     def triangulation_test(self):
         ip = self.ips[np.random.randint(0, len(self.ips))]
-        print()
-        print()
-        print()
-        print("STARTING TRIANGULATION FOR ", ip)
-
+        print("--------------------------------------------------------------------------------------")
+        print("--------------------------------------------------------------------------------------")
+        print("-------------------STARTING TRIANGULATION FOR ", ip,'-------------------------')
+        print("--------------------------------------------------------------------------------------")
+        
+        rest = list(set(self.ips) - set([ip]))
+        print("AGAINST", rest)
         collected_points = []
         for point, pt_px in zip(self.cameras[ip]["world_points"], self.cameras[ip]["pixel_points"]):
             collected_points_ = [[point],[pt_px], [ip]]
-            rest = self.ips.copy()
-            rest.pop(0)
             for ip_ in rest:
                 # if(ip == ip_):continue
                 for pt_3d, pt_2d in zip(self.cameras[ip_]["world_points"],self.cameras[ip_]["pixel_points"]):
                     if(pt_3d[0] == point[0] and pt_3d[1] == point[1] and pt_3d[2] == point[2]):
-                        # print("adding the points")
-                        # print(pt_3d, ip_)
-                        # print(point, ip)
                         collected_points_[0].append(pt_3d)
                         collected_points_[1].append(pt_2d)
                         collected_points_[2].append(ip_)
@@ -198,45 +193,50 @@ class ExtrinsicCalibrator:
                 # print("diff", pt_pr - collected_point[0][0])
                 print("divv", collected_point[0][0]/pt_pr)
                 print("-------------------------------")
+        print("--------------------------------------------------------------------------------------")
+        print("--------------------------------------------------------------------------------------")
+        print("--------------------------------------------------------------------------------------")
         
 
     def save_results(self):
-        name = "extrinsics.pickle"
+        name = "extrinsics_.pickle"
         with open(os.path.join("data","extrinsics", name), "wb") as f:
             pickle.dump(self.cameras, f)
+            print("saved to", os.path.join("data","extrinsics", name))
 
     def load_info(self, ips, use_old_extrinsics=True):
         """
         it assumes that there is a folder and pickle object that has the same name with ip        
         """
         
-        self.cameras =  tools.read_yaml(os.path.join("data","calibrations","camera_info.yaml"))
+        cameras =  tools.read_yaml(os.path.join("data","calibrations","camera_info.yaml"))
+        # print(dir(self.cameras))
+        # print(type(self.cameras))
         if(use_old_extrinsics):
             with open(os.path.join("data", "extrinsics","extrinsics.pickle"), 'rb') as f:
                 extrinsics = pickle.load(f)
+        self.cameras = {}
         for ip in ips:                
+            self.cameras[ip] = {}
             # it should have two arrays: pixel_points, world_points [sm]
-            self.cameras[ip]["pixel_points"] = np.float32(self.cameras[ip]["pixel_points"])
-            self.cameras[ip]["pixel_points"][:,0] *= self.cameras[ip]["orig_shape"][0]/self.cameras[ip]["img_shape"][0]
-            self.cameras[ip]["pixel_points"][:,1] *= self.cameras[ip]["orig_shape"][1]/self.cameras[ip]["img_shape"][1]
-
-             # convert to m
-            self.cameras[ip]["world_points"] = np.float32(self.cameras[ip]["world_points"]) / 100
-            zeros = np.zeros((len(self.cameras[ip]["world_points"]), 1)) 
-            self.cameras[ip]["world_points"] = np.hstack((self.cameras[ip]["world_points"], zeros))
+            self.cameras[ip]["pixel_points"] = np.float32(cameras[ip]["pixel_points"])
+            self.cameras[ip]["world_points"] = np.float32(cameras[ip]["world_points"])
+            self.cameras[ip]["selected_area"] = cameras[ip]["selected_area"]
+            # zeros = np.zeros((len(self.cameras[ip]["world_points"]), 1)) 
+            # self.cameras[ip]["world_points"] = np.hstack((self.cameras[ip]["world_points"], zeros))
             
-            # load calibration
-            with open(os.path.join("data", "intrinsics",ip +".pickle"), 'rb') as f:
-                intrinsics = pickle.load(f)
-            # it should have cameraMatrix,  dist parameters, H, newCameraMatrix
             if(not use_old_extrinsics):
+                # load calibration
+                with open(os.path.join("data", "intrinsics",ip +".pickle"), 'rb') as f:
+                    intrinsics = pickle.load(f)
                 self.cameras[ip]["K"] = intrinsics["K"] if "K" in intrinsics else intrinsics["cameraMatrix"]
                 self.cameras[ip]["optimalK"] =  intrinsics["optimalK"] if "optimalK" in intrinsics else intrinsics["newCameraMatrix"]
                 self.cameras[ip]["dist"] = intrinsics["dist"]
             else:
-                self.cameras[ip]["K"] = extrinsics[ip]["K"] if "K" in extrinsics[ip] else extrinsics[ip]["cameraMatrix"]
-                self.cameras[ip]["optimalK"] =  extrinsics[ip]["optimalK"] if "optimalK" in extrinsics[ip] else extrinsics[ip]["newCameraMatrix"]
+                self.cameras[ip]["K"] = np.float32(extrinsics[ip]["K"] if "K" in extrinsics[ip] else extrinsics[ip]["cameraMatrix"])
+                self.cameras[ip]["optimalK"] =  np.float32(extrinsics[ip]["optimalK"] if "optimalK" in extrinsics[ip] else extrinsics[ip]["newCameraMatrix"])
                 self.cameras[ip]["dist"] = extrinsics[ip]["dist"]
+
     def get_poses(self, ips):
         for ip in ips:
             Hc2w, Hw2c, R, T, O = calib_tools.get_pose(self.cameras[ip])
@@ -274,7 +274,7 @@ class ExtrinsicCalibrator:
             z1_worlds = self.cameras[ip]["world_points"][:, -1]
 
             new_pt = calib_tools.back_project(self.cameras[ip]["pixel_points"], z1_worlds, 
-                        self.cameras[ip]["cameraMatrix"], 
+                        self.cameras[ip]["K"], 
                         self.cameras[ip]["HC2W"], 
                         self.cameras[ip]["dist"])
             print("backprojected points:::")
@@ -292,7 +292,7 @@ class ExtrinsicCalibrator:
 
         for ip in ips:
             pts_3d = self.cameras[ip]["world_points"]
-            ax.scatter(pts_3d[:,0],pts_3d[:,1],pts_3d[:,2], c='blue')
+            ax.scatter(pts_3d[:,0],pts_3d[:,1],pts_3d[:,1] * 0, c='blue')
             ax.scatter(*(self.cameras[ip]["HC2W"][:,-1])[:-1], marker="x", c="black")
             xs,ys,zs = calib_tools.get_orientation_vect(self.cameras[ip]["HC2W"], self.cameras[ip]["Orientation"])
             arrow1 = tools.Arrow3D(xs, ys, zs, mutation_scale=5, lw=2, arrowstyle="-|>", color="k")
@@ -307,7 +307,8 @@ if __name__ == "__main__":
             "192.168.0.113",
             "192.168.0.114",
             "192.168.0.115",
-            "192.168.0.116"
+            "192.168.0.116",
+            "192.168.0.117"
         ]
     exC = ExtrinsicCalibrator(ips)
     exC.apply()

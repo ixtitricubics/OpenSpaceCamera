@@ -135,7 +135,8 @@ def get_pose(cam_info):
     cam_info: Dictionary
         keys: world_points, pixel_points, K, dist
     """
-    ret,rvecs, tvecs = cv2.solvePnP(np.ascontiguousarray(cam_info["world_points"]).reshape((1,-1,3)), 
+    world_points =np.c_[cam_info["world_points"]/100, np.zeros(len(cam_info["world_points"]))]
+    ret,rvecs, tvecs = cv2.solvePnP(np.ascontiguousarray(world_points).reshape((1,-1,3)), 
                                     np.ascontiguousarray(np.float32(cam_info["pixel_points"])).reshape((1,-1,2)),
                                     np.float32(cam_info["K"]), np.float32(cam_info["dist"]))
     R, _ = cv2.Rodrigues(rvecs)

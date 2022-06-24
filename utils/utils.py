@@ -60,7 +60,7 @@ def save_yaml(dict_data, file_path):
 
 def read_yaml(f_path):
         import ruamel.yaml
-        yaml = ruamel.yaml.YAML()
+        yaml = ruamel.yaml.YAML(typ='safe', pure=True)
         yaml.version = (1,2)
         yaml.default_flow_style = None
         
@@ -74,25 +74,25 @@ def read_yaml(f_path):
         return None
 
 def load_calibration(name):
-        import ruamel.yaml
-        yaml = ruamel.yaml.YAML()
-        yaml.version = (1,2)
-        yaml.default_flow_style = None
-        
-        f_path = f'configs/calibrations/{name}.yml'
-        if(os.path.exists(f_path)):
-            with open(f_path, 'r') as f:
-                try:
-                    data = yaml.load(f)
-                    print(data)
-                    points = data["pixel_points"]
-                    world_points = data["world_points"]
-                    img_shape= data["img_shape"]
-                    orig_shape= data["orig_shape"]
-                    return points, world_points, img_shape, orig_shape
-                except Exception as exc:
-                    print(exc)
-        return None, None, None, None
+    import ruamel.yaml
+    yaml = ruamel.yaml.YAML()
+    yaml.version = (1,2)
+    yaml.default_flow_style = None
+    
+    f_path = f'configs/calibrations/{name}.yml'
+    if(os.path.exists(f_path)):
+        with open(f_path, 'r') as f:
+            try:
+                data = yaml.load(f)
+                print(data)
+                points = data["pixel_points"]
+                world_points = data["world_points"]
+                img_shape= data["img_shape"]
+                orig_shape= data["orig_shape"]
+                return points, world_points, img_shape, orig_shape
+            except Exception as exc:
+                print(exc)
+    return None, None, None, None
 from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d import proj3d
 class Arrow3D(FancyArrowPatch):
