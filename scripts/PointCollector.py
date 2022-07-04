@@ -12,7 +12,7 @@ def parse_args():
     parser.add_argument("--scale_read_pts", action="store_true")
     parser.add_argument("--ip", type=str, default="192.168.0.111")
     parser.add_argument("--type", type=str, default="selected_area", choices=["selected_area", "pixel_points"])
-    parser.add_argument("--img_path", type=str, default="data/images/192.168.0.111/1646819692.4600372.jpg")
+    parser.add_argument("--img_path", type=str, default="data/images_extrinsics/111.jpg")
     return parser.parse_args()
 
 args_sys = parse_args()
@@ -35,7 +35,7 @@ def load_info():
             pt[0] *= info[args_sys.ip]["orig_shape"][0]/info[args_sys.ip]["img_shape"][0]
             pt[1] *= info[args_sys.ip]["orig_shape"][1]/info[args_sys.ip]["img_shape"][1]
 def save():
-    assert (args_sys.type == "selected_area" and len(points) == 2) or (args_sys.type == "pixel_points" and len(points) == 4), f"error in selecting correct number of points type:{args_sys.type},num_pts:{len(points)}"
+    assert (args_sys.type == "selected_area" and len(points) == 2) or (args_sys.type == "pixel_points" and len(points) >=4), f"error in selecting correct number of points type:{args_sys.type},num_pts:{len(points)}"
     info[args_sys.ip][args_sys.type] = points
     tools.save_yaml(info, os.path.join("data","calibrations","camera_info.yaml"))
 
@@ -50,8 +50,8 @@ def mouse_event(event, x, y, flags, param):
         new_y =  int(y* info[args_sys.ip]["orig_shape"][1]/info[args_sys.ip]["img_shape"][1])
         if(args_sys.type == "selected_area" and len(points) >= 2):
             points.pop()
-        elif(args_sys.type == "pixel_points" and len(points) >= 4):
-            points.pop()
+        # elif(args_sys.type == "pixel_points" and len(points) >= 4):
+        #     points.pop()
         points.append([new_x, new_y])
         print("new point is added", len(points))
 

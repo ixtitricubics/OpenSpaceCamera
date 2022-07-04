@@ -129,6 +129,8 @@ def get_orientation_vect(H, O):
     ys = [H[:,-1][1], H[:,-1][1] - O[1] * arrow_length]
     zs = [H[:,-1][2], H[:,-1][2] - O[2] * arrow_length]
     return xs,ys,zs
+
+
 # PNP 
 def get_pose(cam_info):
     """
@@ -223,18 +225,60 @@ def back_project(points_2d, z_worlds, K, Tw, dist_coeffs):
         np.ascontiguousarray(np.float32(points_2d)).reshape((1,-1,2)), K, dist_coeffs, P=K
     ).squeeze(axis=1)
     points_3d = []
+    allzs = []
+    allx3ds = []
     # TODO: Vectorize
     for (x_image, y_image), z_world in zip(points_2d, z_worlds):
         kx = (x_image - ccx) / fx
         ky = (y_image - ccy) / fy
         # get point position in camera coordinates
         z3d = (z_world - Tw[2, 3]) / np.dot(Tw[2, :3], [kx, ky, 1])
+        allzs.append(z3d)
         x3d = kx * z3d
         y3d = ky * z3d
         # transform the point to world coordinates
         x_world, y_world = (Tw @ [x3d, y3d, z3d, 1])[:2]
+        allx3ds.append([x3d, y3d, z3d, 1])
         points_3d.append((x_world, y_world, z_world))
+    print("z3d 1", np.array(allzs))
+    print("allx3ds 1", np.array(allx3ds))
     return np.array(points_3d)
+
+
+def backProjectParallel(points_2d, z_worlds, K, Tw, dist_coeffs):
+    """Back project points in the image plane to 3D
+    A single point in the image plane correspods to a ray in 3D space. This
+    method determines the 3D cooridates of the points where rays cast out
+    of the image plane intersect with the provided heights.
+    Args:
+        points_2d (ndarray): An Nx2 array of image coordinates to back
+                                project.
+        z_worlds (ndarray): A list-like object of N heights (assuming z=0
+                            is the ground plane) to back project to.
+        K (ndarray): A 3x3 intrinsic matrix.
+        Tw (ndarray): A 4x4 pose matrix.
+        dist_coeffs (ndarray): An array of distortion coefficients of the form
+                               [k1, k2, [p1, p2, [k3]]], where ki is the ith
+                               radial distortion coefficient and pi is the ith
+                               tangential distortion coeff.
+    """
+    # Unpack the intrinsics we are going to need for this calculation.
+    fx, fy = K[0, 0], K[1, 1]
+    ccx, ccy = K[0, 2], K[1, 2]
+    points_2d = cv2.undistortPoints(
+        np.ascontiguousarray(np.float32(points_2d)).reshape((1,-1,2)), K, dist_coeffs, P=K
+    ).squeeze(axis=1)
+
+    points_2d_norm = (points_2d - [ccx, ccy])/[fx, fy]
+    ones = np.ones(len(points_2d_norm))
+    # z to cam coordinate system 
+    z3d = np.expand_dims((z_worlds - Tw[2, 3]) / np.dot(np.c_[points_2d_norm, ones], Tw[2, :3]), -1)
+
+    points_2d_norm = points_2d_norm*z3d
+    points_2d_norm = np.c_[points_2d_norm,z3d,ones]
+    res3D = np.round((Tw@points_2d_norm.T).T, 3)
+    return res3D
+
 
 def undistort(point_2d, K, dist):    
     point_2d = cv2.undistortPoints(

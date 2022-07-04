@@ -21,6 +21,7 @@ def get_image_pairs(ip1, ip2):
         "192.168.0.114": "data/images_extrinsics/114.jpg",
         "192.168.0.115": "data/images_extrinsics/115.jpg",
         "192.168.0.116": "data/images_extrinsics/116.jpg",
+        "192.168.0.117": "data/images_extrinsics/117.jpg",
     }
     return [image_pairs[ip1], image_pairs[ip2]]
 # to get epipolar line we use these points 
@@ -50,7 +51,7 @@ class ExtrinsicCalibrator:
             self.save_results()
         
         # self.print_projection_error(self.ips)
-        # self.print_backprojection_results(self.ips)
+        self.print_backprojection_results(self.ips)
         if(self.visualize_3d):
             self.visualize_results(self.ips)
         if(self.test_triangulate):
@@ -270,17 +271,27 @@ class ExtrinsicCalibrator:
             # print("ip", self.cameras[ip]["dist"])
 
     def print_backprojection_results(self, ips):
-        for ip in ips:
-            z1_worlds = self.cameras[ip]["world_points"][:, -1]
+        print()
+        # for ip in ips:
+        ip = self.ips[0]
+        z1_worlds = 0.0 * (self.cameras[ip]["world_points"][:, -1])/100
 
-            new_pt = calib_tools.back_project(self.cameras[ip]["pixel_points"], z1_worlds, 
-                        self.cameras[ip]["K"], 
-                        self.cameras[ip]["HC2W"], 
-                        self.cameras[ip]["dist"])
-            print("backprojected points:::")
-            print(new_pt)
-            print("original points:::")
-            print(self.cameras[ip]["world_points"])
+        new_pt = calib_tools.back_project(self.cameras[ip]["pixel_points"], z1_worlds, 
+                    self.cameras[ip]["K"], 
+                    self.cameras[ip]["HC2W"], 
+                    self.cameras[ip]["dist"])
+        print("backprojected points:::")
+        print(new_pt)
+        print("original points:::")
+        print((self.cameras[ip]["world_points"])/100)
+
+        new_pt = calib_tools.backProjectParallel(self.cameras[ip]["pixel_points"], z1_worlds, 
+                    self.cameras[ip]["K"], 
+                    self.cameras[ip]["HC2W"],
+                    self.cameras[ip]["dist"])
+        print("new methodd ")
+        print(new_pt)            
+
     
     def visualize_results(self, ips):
         fig = plt.figure()
@@ -292,7 +303,7 @@ class ExtrinsicCalibrator:
 
         for ip in ips:
             pts_3d = self.cameras[ip]["world_points"]
-            ax.scatter(pts_3d[:,0],pts_3d[:,1],pts_3d[:,1] * 0, c='blue')
+            ax.scatter(pts_3d[:,0]/100,pts_3d[:,1]/100,pts_3d[:,1]/100 * 0, c='blue')
             ax.scatter(*(self.cameras[ip]["HC2W"][:,-1])[:-1], marker="x", c="black")
             xs,ys,zs = calib_tools.get_orientation_vect(self.cameras[ip]["HC2W"], self.cameras[ip]["Orientation"])
             arrow1 = tools.Arrow3D(xs, ys, zs, mutation_scale=5, lw=2, arrowstyle="-|>", color="k")
@@ -302,13 +313,13 @@ class ExtrinsicCalibrator:
 
 if __name__ == "__main__":
     ips = [ 
-            "192.168.0.111",
-            "192.168.0.112",
-            "192.168.0.113",
+            # "192.168.0.111",
+            # "192.168.0.112",
+            # "192.168.0.113",
             "192.168.0.114",
-            "192.168.0.115",
+            # "192.168.0.115",
             "192.168.0.116",
-            "192.168.0.117"
+            # "192.168.0.117"
         ]
     exC = ExtrinsicCalibrator(ips)
     exC.apply()
